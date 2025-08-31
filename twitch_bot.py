@@ -46,16 +46,13 @@ class TwitchBot:
             self.socket.settimeout(10)
             self.socket.connect((self.server, self.port))
             
-            # Send authentication
             self.socket.send(f"PASS {self.oauth_token}\r\n".encode('utf-8'))
             self.socket.send(f"NICK {self.bot_username}\r\n".encode('utf-8'))
             
-            # Request capabilities for better IRC experience
             self.socket.send("CAP REQ :twitch.tv/membership\r\n".encode('utf-8'))
             self.socket.send("CAP REQ :twitch.tv/tags\r\n".encode('utf-8'))
             self.socket.send("CAP REQ :twitch.tv/commands\r\n".encode('utf-8'))
             
-            # Join channel
             self.socket.send(f"JOIN #{self.channel}\r\n".encode('utf-8'))
             
             self.connected = True
@@ -151,18 +148,16 @@ class TwitchBot:
             if parsed['params']:
                 self.send_pong(parsed['params'][0])
         
-        elif command == '001':  # Welcome message
+        elif command == '001':  
             logger.info("Successfully authenticated with Twitch")
             
         elif command == 'JOIN':
-            # Successfully joined channel
             if not self.hi_sent:
-                time.sleep(2)  # Wait a bit before sending hi
+                time.sleep(2)
                 self.send_message("hi")
                 self.hi_sent = True
                 
         elif command == 'PRIVMSG':
-            # Chat message received
             if len(parsed['params']) >= 2:
                 channel = parsed['params'][0]
                 msg_content = ' '.join(parsed['params'][1:])
@@ -174,7 +169,6 @@ class TwitchBot:
                 logger.debug(f"[{channel}] {username}: {msg_content}")
         
         elif command == 'NOTICE':
-            # Server notices
             if len(parsed['params']) >= 2:
                 notice = ' '.join(parsed['params'][1:])
                 if notice.startswith(':'):
@@ -182,7 +176,6 @@ class TwitchBot:
                 logger.info(f"Notice: {notice}")
         
         elif command == 'RECONNECT':
-            # Twitch is asking us to reconnect
             logger.info("Twitch requested reconnection")
             self.connected = False
     
@@ -193,12 +186,10 @@ class TwitchBot:
         
         while self.running and self.connected:
             try:
-                # Send periodic PING to keep connection alive
                 if time.time() - last_ping > self.ping_interval:
                     self.send_ping()
                     last_ping = time.time()
                 
-                # Set socket timeout for non-blocking receive
                 self.socket.settimeout(1.0)
                 data = self.socket.recv(4096).decode('utf-8', errors='ignore')
                 
@@ -209,14 +200,12 @@ class TwitchBot:
                 
                 buffer += data
                 
-                # Process complete messages
                 while '\r\n' in buffer:
                     line, buffer = buffer.split('\r\n', 1)
                     if line.strip():
                         self.handle_message(line.strip())
                         
             except socket.timeout:
-                # Timeout is expected, continue loop
                 continue
             except Exception as e:
                 logger.error(f"Error in listen loop: {e}")
@@ -233,7 +222,7 @@ class TwitchBot:
         while self.running:
             try:
                 if self.connect():
-                    reconnect_delay = self.reconnect_delay  # Reset delay on successful connection
+                    reconnect_delay = self.reconnect_delay
                     self.listen()
                 else:
                     logger.error("Failed to connect")
@@ -252,7 +241,6 @@ class TwitchBot:
                 logger.info(f"Reconnecting in {reconnect_delay} seconds...")
                 time.sleep(reconnect_delay)
                 
-                # Exponential backoff for reconnection delay
                 reconnect_delay = min(reconnect_delay * 2, self.max_reconnect_delay)
         
         logger.info("Bot stopped")
@@ -264,7 +252,7 @@ class TwitchBot:
 
 def main():
     # Configuration - REPLACE THESE VALUES
-    OAUTH_TOKEN = "oauth:"  # Get from https://twitchapps.com/tmi/
+    OAUTH_TOKEN = "oauth:"  # Get from https://twitchtokengenerator.com
     BOT_USERNAME = ""           # Your bot's Twitch username
     CHANNEL = ""              # Channel to join (without #)
     
