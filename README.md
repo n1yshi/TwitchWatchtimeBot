@@ -21,7 +21,7 @@ A simple and robust Twitch IRC bot written in Python that connects to Twitch cha
 ## Setup
 
 1. **Get OAuth Token**
-   - Visit https://twitchapps.com/tmi/
+   - Visit https://twitchtokengenerator.com
    - Authorize the application with your bot account
    - Copy the OAuth token (format: `oauth:your_token_here`)
 
