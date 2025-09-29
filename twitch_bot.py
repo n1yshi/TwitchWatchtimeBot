@@ -5,7 +5,6 @@ import logging
 import re
 from typing import Optional
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -125,13 +124,11 @@ class TwitchBot:
                     key, value = tag.split('=', 1)
                     parsed['tags'][key] = value
         
-        # Parse prefix
         if message.startswith(':'):
             prefix_end = message.find(' ')
             parsed['prefix'] = message[1:prefix_end]
             message = message[prefix_end + 1:]
         
-        # Parse command and params
         parts = message.split(' ')
         parsed['command'] = parts[0]
         parsed['params'] = parts[1:]
@@ -144,7 +141,6 @@ class TwitchBot:
         command = parsed['command']
         
         if command == 'PING':
-            # Respond to server PING
             if parsed['params']:
                 self.send_pong(parsed['params'][0])
         
@@ -164,7 +160,6 @@ class TwitchBot:
                 if msg_content.startswith(':'):
                     msg_content = msg_content[1:]
                 
-                # Extract username from prefix
                 username = parsed['prefix'].split('!')[0] if '!' in parsed['prefix'] else parsed['prefix']
                 logger.debug(f"[{channel}] {username}: {msg_content}")
         
@@ -270,7 +265,6 @@ def main():
         print("ERROR: Please set the target channel name!")
         return
     
-    # Create and run bot
     bot = TwitchBot(OAUTH_TOKEN, BOT_USERNAME, CHANNEL)
     
     try:
