@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TwitchBot:
-    def __init__(self, oauth_token: str, bot_username: str, channels: list[str]):
+    def __init__(self, oauth_token: str, bot_username: str, channels: list[str], announce_channel: Optional[str] = None):
         """
         Initialize Twitch Bot
 
@@ -24,10 +24,12 @@ class TwitchBot:
             oauth_token: OAuth2 token from Twitch (format: oauth:your_token_here)
             bot_username: Your bot's Twitch username
             channels: List of channels to join (without #)
+            announce_channel: Optional channel to send "hi" message only in (leave None for no "hi")
         """
         self.oauth_token = oauth_token
         self.bot_username = bot_username.lower()
         self.channels = [ch.lower() for ch in channels]
+        self.announce_channel = announce_channel.lower() if announce_channel else None
         self.server = 'irc.chat.twitch.tv'
         self.port = 6667
         self.socket = None
@@ -153,9 +155,9 @@ class TwitchBot:
             logger.info("Successfully authenticated with Twitch")
             
         elif command == 'JOIN':
-            if len(parsed['params']) >= 1:
+            if self.announce_channel and len(parsed['params']) >= 1:
                 joined_channel = parsed['params'][0].lstrip('#').lower()
-                if joined_channel in self.channels and joined_channel not in self.hi_sent:
+                if joined_channel == self.announce_channel and joined_channel not in self.hi_sent:
                     time.sleep(2)
                     self.send_message("hi", joined_channel)
                     self.hi_sent.add(joined_channel)
@@ -257,6 +259,7 @@ def main():
     OAUTH_TOKEN = "oauth:"  # Get from https://twitchtokengenerator.com
     BOT_USERNAME = ""           # Your bot's Twitch username
     CHANNELS = [""]             # List of channels to join (without #)
+    ANNOUNCE_CHANNEL = None     # Optional: channel to send "hi" in (leave None for no "hi")
 
     # Validate configuration
     if OAUTH_TOKEN == "oauth:your_oauth_token_here":
@@ -272,7 +275,11 @@ def main():
         print("ERROR: Please set the target channel names!")
         return
 
-    bot = TwitchBot(OAUTH_TOKEN, BOT_USERNAME, CHANNELS)
+    if ANNOUNCE_CHANNEL and ANNOUNCE_CHANNEL.lower() not in [ch.lower() for ch in CHANNELS]:
+        print("ERROR: ANNOUNCE_CHANNEL must be one of the channels in CHANNELS!")
+        return
+
+    bot = TwitchBot(OAUTH_TOKEN, BOT_USERNAME, CHANNELS, ANNOUNCE_CHANNEL)
     
     try:
         bot.run_with_reconnect()
