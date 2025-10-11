@@ -16,24 +16,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TwitchBot:
-    def __init__(self, oauth_token: str, bot_username: str, channel: str):
+    def __init__(self, oauth_token: str, bot_username: str, channels: list[str]):
         """
         Initialize Twitch Bot
-        
+
         Args:
             oauth_token: OAuth2 token from Twitch (format: oauth:your_token_here)
             bot_username: Your bot's Twitch username
-            channel: Channel to join (without #)
+            channels: List of channels to join (without #)
         """
         self.oauth_token = oauth_token
         self.bot_username = bot_username.lower()
-        self.channel = channel.lower()
+        self.channels = [ch.lower() for ch in channels]
         self.server = 'irc.chat.twitch.tv'
         self.port = 6667
         self.socket = None
         self.connected = False
         self.running = False
-        self.hi_sent = False
+        self.hi_sent = set()
         self.reconnect_delay = 5  # seconds
         self.max_reconnect_delay = 300  # 5 minutes max
         self.ping_interval = 60  # Send PING every 60 seconds
@@ -51,11 +51,12 @@ class TwitchBot:
             self.socket.send("CAP REQ :twitch.tv/membership\r\n".encode('utf-8'))
             self.socket.send("CAP REQ :twitch.tv/tags\r\n".encode('utf-8'))
             self.socket.send("CAP REQ :twitch.tv/commands\r\n".encode('utf-8'))
-            
-            self.socket.send(f"JOIN #{self.channel}\r\n".encode('utf-8'))
-            
+
+            for channel in self.channels:
+                self.socket.send(f"JOIN #{channel}\r\n".encode('utf-8'))
+
             self.connected = True
-            logger.info(f"Connected to Twitch IRC and joined #{self.channel}")
+            logger.info(f"Connected to Twitch IRC and joined channels: {', '.join('#' + ch for ch in self.channels)}")
             return True
             
         except Exception as e:
@@ -73,12 +74,16 @@ class TwitchBot:
         self.connected = False
         logger.info("Disconnected from Twitch IRC")
     
-    def send_message(self, message: str):
-        """Send a message to the channel"""
+    def send_message(self, message: str, channel: Optional[str] = None):
+        """Send a message to the specified channel (or first channel if none)"""
         if self.connected and self.socket:
+            target_channel = channel.lower() if channel else self.channels[0]
+            if target_channel not in self.channels:
+                logger.error(f"Channel {target_channel} not in joined channels")
+                return
             try:
-                self.socket.send(f"PRIVMSG #{self.channel} :{message}\r\n".encode('utf-8'))
-                logger.info(f"Sent message: {message}")
+                self.socket.send(f"PRIVMSG #{target_channel} :{message}\r\n".encode('utf-8'))
+                logger.info(f"Sent message to #{target_channel}: {message}")
             except Exception as e:
                 logger.error(f"Failed to send message: {e}")
                 self.connected = False
@@ -148,10 +153,12 @@ class TwitchBot:
             logger.info("Successfully authenticated with Twitch")
             
         elif command == 'JOIN':
-            if not self.hi_sent:
-                time.sleep(2)
-                self.send_message("hi")
-                self.hi_sent = True
+            if len(parsed['params']) >= 1:
+                joined_channel = parsed['params'][0].lstrip('#').lower()
+                if joined_channel in self.channels and joined_channel not in self.hi_sent:
+                    time.sleep(2)
+                    self.send_message("hi", joined_channel)
+                    self.hi_sent.add(joined_channel)
                 
         elif command == 'PRIVMSG':
             if len(parsed['params']) >= 2:
@@ -212,7 +219,7 @@ class TwitchBot:
         self.running = True
         reconnect_delay = self.reconnect_delay
         
-        logger.info(f"Starting Twitch bot for channel #{self.channel}")
+        logger.info(f"Starting Twitch bot for channels: {', '.join('#' + ch for ch in self.channels)}")
         
         while self.running:
             try:
@@ -249,23 +256,23 @@ def main():
     # Configuration - REPLACE THESE VALUES
     OAUTH_TOKEN = "oauth:"  # Get from https://twitchtokengenerator.com
     BOT_USERNAME = ""           # Your bot's Twitch username
-    CHANNEL = ""              # Channel to join (without #)
-    
+    CHANNELS = [""]             # List of channels to join (without #)
+
     # Validate configuration
     if OAUTH_TOKEN == "oauth:your_oauth_token_here":
         print("ERROR: Please set your OAuth token!")
         print("Get your token from: https://twitchapps.com/tmi/")
         return
-    
+
     if BOT_USERNAME == "your_bot_username":
         print("ERROR: Please set your bot username!")
         return
-    
-    if CHANNEL == "target_channel_name":
-        print("ERROR: Please set the target channel name!")
+
+    if not CHANNELS or CHANNELS == ["target_channel_name"]:
+        print("ERROR: Please set the target channel names!")
         return
-    
-    bot = TwitchBot(OAUTH_TOKEN, BOT_USERNAME, CHANNEL)
+
+    bot = TwitchBot(OAUTH_TOKEN, BOT_USERNAME, CHANNELS)
     
     try:
         bot.run_with_reconnect()
