@@ -15,5 +15,3 @@
      BOT_USERNAME = "your_bot_username"           # Your bot's Twitch username
      CHANNEL = "target_channel_name"              # Channel to join (without #)
      ```
-
-test
