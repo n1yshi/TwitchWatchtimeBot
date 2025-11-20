@@ -16,3 +16,4 @@
      CHANNEL = "target_channel_name"              # Channel to join (without #)
      ```
 
+test
